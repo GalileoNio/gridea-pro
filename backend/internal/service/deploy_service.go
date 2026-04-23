@@ -61,18 +61,26 @@ func (s *DeployService) SetCdnUploadService(cdnUpload *CdnUploadService) {
 }
 
 func (s *DeployService) DeployToRemote(ctx context.Context) error {
-	// 为本次部署创建可取消的 ctx，暴露 cancel 给 CancelDeploy 调用。
-	deployCtx, cancel := context.WithCancel(ctx)
+	// 两层 ctx 叠加：
+	// - 外层 WithCancel：暴露 cancel 给 CancelDeploy 调用（#42 / PR #93 可取消）
+	// - 内层 WithTimeout：避免 SFTP io.Copy / FTP Stor 等对 ctx 不敏感的阻塞点永久
+	//   占锁（#49 / PR #87 总超时）。每个 provider 内部 HTTP 请求通过
+	//   NewRequestWithContext 继承这个 ctx，超时后 Transport 层会主动取消并释放
+	//   goroutine。
+	cancelCtx, cancelFn := context.WithCancel(ctx)
 
 	s.mu.Lock()
 	if s.isDeploying {
 		s.mu.Unlock()
-		cancel()
+		cancelFn()
 		return fmt.Errorf(domain.ErrDeployInProgress)
 	}
 	s.isDeploying = true
-	s.activeCancel = cancel
+	s.activeCancel = cancelFn
 	s.mu.Unlock()
+
+	deployCtx, timeoutCancel := context.WithTimeout(cancelCtx, defaultDeployTimeout)
+	defer timeoutCancel()
 	ctx = deployCtx
 
 	// Ensure we reset the flag when done
@@ -81,18 +89,8 @@ func (s *DeployService) DeployToRemote(ctx context.Context) error {
 		s.isDeploying = false
 		s.activeCancel = nil
 		s.mu.Unlock()
-		cancel()
+		cancelFn()
 	}()
-
-	// 总超时控制（issue #49）：
-	// 1) 部分 provider 在非 HTTP 的阻塞点（SFTP io.Copy / FTP Stor）对 ctx 不敏感，
-	//    没有总 timeout 就会永远占用互斥锁，直到进程重启
-	// 2) WailsContext 在正常运行期间永远不 Done，不能靠外部取消兜底
-	// 每个 provider 内部的 HTTP 请求通过 NewRequestWithContext 继承这个 ctx，
-	// 超时后会被 Transport 层主动取消，释放 goroutine。
-	deployCtx, cancel := context.WithTimeout(ctx, defaultDeployTimeout)
-	defer cancel()
-	ctx = deployCtx
 
 	s.log(ctx, "Starting deployment check...")
 
