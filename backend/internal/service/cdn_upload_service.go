@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -160,14 +161,25 @@ func (s *CdnUploadService) uploadToGitHub(ctx context.Context, setting domain.Cd
 		}
 	}
 
-	// 慢路径：manifest 未命中或 SHA 变更，还需一次 GET 拿远端 SHA 做增量更新
+	// 慢路径：manifest 未命中或 SHA 变更，还需一次 GET 拿远端 SHA 做增量更新。
+	//   - 内容相同 → 跳过 PUT 并补录 manifest
+	//   - 远端明确不存在（404）→ 走 create 路径（body 不带 sha）
+	//   - 查询失败（限流 / 5xx / 网络）→ 禁止走 create，否则对已有文件发无 sha PUT
+	//     会被 GitHub 拒 422。直接返回错误让调用方记失败，下次 retry
 	existingSHA, err := s.getGithubFileSHA(ctx, setting, remotePath, branch)
-	if err == nil && existingSHA == localSHA {
-		// 文件内容相同，跳过上传，但补录到 manifest 避免下次再 GET
-		if manifest != nil {
-			manifest.record(remotePath, localSHA)
+	switch {
+	case err == nil:
+		if existingSHA == localSHA {
+			if manifest != nil {
+				manifest.record(remotePath, localSHA)
+			}
+			return nil
 		}
-		return nil
+		// 内容不同，进入下方 PUT with sha 路径
+	case errors.Is(err, errRemoteFileNotFound):
+		// 远端确认不存在，进入 create 路径（existingSHA == ""）
+	default:
+		return err
 	}
 
 	// 构建请求体
@@ -234,33 +246,51 @@ func (s *CdnUploadService) uploadToGitHub(ctx context.Context, setting domain.Cd
 	return nil
 }
 
-// getGithubFileSHA 获取 GitHub 上文件的 SHA
+// errRemoteFileNotFound 明确的"远端文件不存在"信号（404），区分于"查询失败"。
+// uploadToGitHub 用 errors.Is 来决定"可以走 create 路径"还是"必须放弃"。
+var errRemoteFileNotFound = errors.New("remote file not found")
+
+// getGithubFileSHA 获取 GitHub 上文件的 SHA。
+//   - 文件存在且 200：返回 sha, nil
+//   - 文件真不存在（404）：返回 "", errRemoteFileNotFound
+//   - 其他错误（403 限流 / 5xx / 网络中断等）：返回 "", err —— 必须透传，
+//     调用方不能降级为 create，否则会对已有文件发无 sha PUT 触发 422
+//
+// DoHTTPWithRetry（#46）兜底 429 / 5xx / 瞬时错误。GitHub 的 secondary rate limit
+// 大概率撞在这条 GET 上，不退避就会把连锁 422 打到 PUT 上。
 func (s *CdnUploadService) getGithubFileSHA(ctx context.Context, setting domain.CdnSetting, remotePath, branch string) (string, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s?ref=%s",
 		setting.GithubUser, setting.GithubRepo, remotePath, branch)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return "", err
+	buildReq := func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+setting.GithubToken)
+		req.Header.Set("Accept", "application/vnd.github.v3+json")
+		return req, nil
 	}
-	req.Header.Set("Authorization", "Bearer "+setting.GithubToken)
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
 
-	resp, err := s.httpClient(ctx).Do(req)
+	resp, err := deploy.DoHTTPWithRetry(ctx, s.httpClient(ctx), buildReq, deploy.HTTPRetryPolicy{MaxAttempts: 3}, nil)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("查询 %s 远端 SHA 失败: %w", remotePath, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("文件不存在")
+	switch resp.StatusCode {
+	case http.StatusOK:
+		var result githubContentsResponse
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return "", fmt.Errorf("解析 %s 远端元数据失败: %w", remotePath, err)
+		}
+		return result.SHA, nil
+	case http.StatusNotFound:
+		return "", errRemoteFileNotFound
+	default:
+		// 403 限流 / 5xx / 其他：当成查询失败往上抛，让 uploadToGitHub 不要误判为"新文件"
+		return "", fmt.Errorf("查询 %s 远端 SHA HTTP %d", remotePath, resp.StatusCode)
 	}
-
-	var result githubContentsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", err
-	}
-	return result.SHA, nil
 }
 
 // gitBlobSHA 计算 git blob 的 SHA1（与 GitHub API 一致）
