@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -139,6 +140,21 @@ func (p *GitProvider) Deploy(ctx context.Context, outputDir string, setting *dom
 	}
 
 	// 3.6 Commit
+	// 取消时本地 commit 回滚：commit 之后被取消会留一个没推到远端的 stale commit。
+	// defer 一个 SoftReset 让本地 history 干净 —— 只移 HEAD 引用，不动 index/worktree，
+	// <10ms 完成。empty repo（首次部署）commitParent 是 zero，跳过 reset，接受多一个
+	// stale commit（下次 force push 会覆盖远端）。
+	var commitParent plumbing.Hash
+	if h, errHead := r.Head(); errHead == nil {
+		commitParent = h.Hash()
+	}
+	needsRollback := false
+	defer func() {
+		if needsRollback && !commitParent.IsZero() {
+			_ = w.Reset(&git.ResetOptions{Mode: git.SoftReset, Commit: commitParent})
+		}
+	}()
+
 	logger("Committing changes...")
 	commitMsg := fmt.Sprintf("Deployed by Gridea Pro: %s", time.Now().Format("2006-01-02 15:04:05"))
 	email := setting.Email()
@@ -163,6 +179,8 @@ func (p *GitProvider) Deploy(ctx context.Context, outputDir string, setting *dom
 	} else if commitErr != nil {
 		return fmt.Errorf("failed to commit: %w", commitErr)
 	} else {
+		// 新 commit 已生成，标记需要回滚；push 成功后会清掉。
+		needsRollback = true
 		logger(fmt.Sprintf("Committed successfully: %s", commitHash.String()[:7]))
 	}
 
@@ -218,12 +236,14 @@ func (p *GitProvider) Deploy(ctx context.Context, outputDir string, setting *dom
 	}
 
 	if err == git.NoErrAlreadyUpToDate {
+		needsRollback = false
 		logger("Remote is already up-to-date!")
 		return nil
 	} else if err != nil {
 		return fmt.Errorf("failed to push to remote: %w", err)
 	}
 
+	needsRollback = false
 	logger("Deployment successful!")
 	return nil
 }
