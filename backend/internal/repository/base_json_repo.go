@@ -2,8 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"gridea-pro/backend/internal/domain"
+	"io/fs"
+	"log"
 	"path/filepath"
 	"sync"
 )
@@ -57,11 +60,17 @@ func (r *BaseJSONRepository[T]) forceLoad() error {
 	dataMap := make(map[string][]T)
 
 	if err := LoadJSONFile(dbPath, &dataMap); err != nil {
-		// 如果加载失败，假设文件不存在或为空，初始化为空列表
-		// 也可以根据 err 类型做更细致的处理
-		r.data = []T{}
-		r.loaded = true
-		return nil
+		// 文件真不存在：合法的"空"初始状态，可以安全锁进 cache。
+		if errors.Is(err, fs.ErrNotExist) {
+			r.data = []T{}
+			r.loaded = true
+			return nil
+		}
+		// 其他错误（权限、瞬态 I/O、JSON 解析失败等）：必须向上抛，
+		// 且**不能**把空结果锁进 cache + loaded=true（issue #107 的根因）——
+		// 否则一次瞬态失败会让用户永远看到空列表，直到下次手动 invalidate。
+		log.Printf("[repo] forceLoad %s failed: %v", dbPath, err)
+		return fmt.Errorf("load %s: %w", r.fileName, err)
 	}
 
 	if val, ok := dataMap[r.rootKey]; ok {

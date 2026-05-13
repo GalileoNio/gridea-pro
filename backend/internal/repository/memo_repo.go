@@ -2,9 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"gridea-pro/backend/internal/domain"
 	"gridea-pro/backend/internal/utils"
+	"io/fs"
+	"log"
 	"path/filepath"
 	"sync"
 	"time"
@@ -45,9 +48,15 @@ func (r *memoRepository) forceLoad() error {
 	}
 
 	if err := LoadJSONFile(dbPath, &db); err != nil {
-		r.cache = []domain.Memo{}
-		r.loaded = true
-		return nil // Return nil on error (assuming empty or missing file)
+		// 文件不存在：合法初始状态。
+		if errors.Is(err, fs.ErrNotExist) {
+			r.cache = []domain.Memo{}
+			r.loaded = true
+			return nil
+		}
+		// 其他错误必须向上抛，不能把空结果锁进 cache（issue #107 同模式）。
+		log.Printf("[repo] memoRepo load %s failed: %v", dbPath, err)
+		return fmt.Errorf("load memos: %w", err)
 	}
 
 	memos := make([]domain.Memo, len(db.Memos))

@@ -2,8 +2,10 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"gridea-pro/backend/internal/domain"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -78,19 +80,40 @@ func (r *postRepository) scanPosts() error {
 	}
 
 	var allPosts []domain.Post
+	var fileErrs []error
+	mdCount := 0
 	for _, file := range files {
 		if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
 			continue
 		}
+		mdCount++
 		content, err := os.ReadFile(filepath.Join(postsDir, file.Name()))
 		if err != nil {
+			log.Printf("[postRepo] read %s failed: %v", file.Name(), err)
+			fileErrs = append(fileErrs, fmt.Errorf("read %s: %w", file.Name(), err))
 			continue
 		}
 		post, err := r.parsePost(string(content), file.Name())
 		if err != nil {
+			log.Printf("[postRepo] parse %s failed: %v", file.Name(), err)
+			fileErrs = append(fileErrs, fmt.Errorf("parse %s: %w", file.Name(), err))
 			continue
 		}
 		allPosts = append(allPosts, post)
+	}
+
+	// 关键判断（issue #107）：
+	// - 磁盘上有 N 个 .md 文件，但**一篇都没成功加载** → 不是"用户没文章"，
+	//   而是底层 I/O 全军覆没（权限、文件系统瞬态错误、批量 YAML 损坏等）。
+	//   不能把空结果锁进 cache + loaded=true，否则用户永远看不到文章直到下次 invalidate。
+	// - 部分失败（mdCount > len(allPosts)）：保留成功的部分，log 错误供排查。
+	if mdCount > 0 && len(allPosts) == 0 {
+		return fmt.Errorf("posts dir has %d .md files but none could be loaded: %w",
+			mdCount, errors.Join(fileErrs...))
+	}
+	if len(fileErrs) > 0 {
+		log.Printf("[postRepo] partial scan: %d/%d .md files failed to load",
+			len(fileErrs), mdCount)
 	}
 
 	// Sort: 置顶优先，再按 CreatedAt 降序

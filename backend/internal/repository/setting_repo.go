@@ -2,7 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"gridea-pro/backend/internal/domain"
+	"io/fs"
+	"log"
 	"path/filepath"
 	"sync"
 )
@@ -40,12 +44,16 @@ func (r *settingRepository) loadIfNeeded() error {
 	settingPath := filepath.Join(r.appDir, "config", "setting.json")
 	var setting domain.Setting
 	if err := LoadJSONFile(settingPath, &setting); err != nil {
-		// If load fails, return empty setting but mark loaded to avoid repeated disk reads
-		// Assuming error means file missing or invalid.
-		// Detailed error handling might be better, but for now:
-		r.cache = &domain.Setting{}
-		r.loaded = true
-		return nil
+		// 文件不存在：合法初始状态，锁进 cache 没问题。
+		if errors.Is(err, fs.ErrNotExist) {
+			r.cache = &domain.Setting{}
+			r.loaded = true
+			return nil
+		}
+		// 其他错误：不能把空 setting 锁进 cache（否则 deploy 拿到空 PlatformConfigs
+		// 就以为没配 token，issue #107 同模式）——必须向上抛，让下次访问能重试。
+		log.Printf("[repo] settingRepo load %s failed: %v", settingPath, err)
+		return fmt.Errorf("load setting: %w", err)
 	}
 
 	r.cache = &setting
