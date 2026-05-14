@@ -12,7 +12,8 @@
         "warning": "Warnung",
         "language": "Sprache",
         "saved": "Gespeichert",
-        "search": "Suchen"
+        "search": "Suchen",
+        "clear": "Löschen"
     },
     "nav": {
         "preview": "Vorschau",
@@ -527,7 +528,9 @@
         "renameFailed": "Umbenennen fehlgeschlagen",
         "saveFailed": "Speichern fehlgeschlagen",
         "updateFailed": "Aktualisierung fehlgeschlagen",
-        "deleteFailed": "Löschen fehlgeschlagen"
+        "deleteFailed": "Löschen fehlgeschlagen",
+        "markdownSupported": "Markdown-Syntax unterstützt",
+        "setPublishTime": "Veröffentlichungszeit festlegen"
     },
     "preferences": {
         "themeMode": "Design-Modus",

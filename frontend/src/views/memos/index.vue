@@ -238,10 +238,10 @@ const deleteDialogVisible = ref(false)
 const memoToDelete = ref<string | null>(null)
 const tagToDelete = ref<string | null>(null)
 
-async function handleSaveMemo(content: string) {
-    // Creating new memo
+async function handleSaveMemo(content: string, createdAt: string) {
+    // Creating new memo（createdAt 为空时后端按当前时间发布）
     try {
-        await memoStore.saveMemo(content)
+        await memoStore.saveMemo(content, createdAt)
         toast.success(t('memo.published'))
     } catch {
         toast.error(t('memo.saveFailed'))

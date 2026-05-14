@@ -27,7 +27,44 @@ v-for="(tag, index) in filteredTags" :key="tag.name"
                 </div>
             </div>
         </div>
-        <div class="flex items-center justify-end px-4 pb-3 pt-2 border-t border-border/30">
+        <div class="flex items-center justify-between px-4 pb-3 pt-2 border-t border-border/30">
+            <!-- 左下角：Markdown 支持提示 + 发布时间设置 -->
+            <div class="flex items-center gap-1.5">
+                <span class="text-muted-foreground/40" :title="t('memo.markdownSupported')">
+                    <MarkdownIcon class="w-[18px] h-[11px]" />
+                </span>
+                <Popover @update:open="onPickerOpen">
+                    <PopoverTrigger as-child>
+                        <button
+type="button" :title="t('memo.setPublishTime')"
+                            class="flex items-center gap-1 h-6 px-1.5 rounded-md text-xs text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer">
+                            <CalendarIcon class="w-3.5 h-3.5" />
+                            <span v-if="publishDateTime" class="tabular-nums">{{ publishDateTime }}</span>
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent class="w-auto p-0" align="start">
+                        <Calendar
+:model-value="(calendarValue as any)" show-week-number
+                            @update:model-value="(val: any) => (calendarValue = val)" />
+                        <div class="border-t p-3">
+                            <div class="relative">
+                                <ClockIcon class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground z-10" />
+                                <Input
+v-model="dateTimeDraft" placeholder="YYYY-MM-DD HH:mm:ss"
+                                    class="h-9 pl-9 selection:bg-primary selection:text-primary-foreground"
+                                    @blur="commitDateTime" @keyup.enter="commitDateTime" />
+                            </div>
+                        </div>
+                    </PopoverContent>
+                </Popover>
+                <button
+v-if="publishDateTime" type="button" :title="t('common.clear')"
+                    class="text-muted-foreground/40 hover:text-destructive transition-colors cursor-pointer"
+                    @click="clearPublishDateTime">
+                    <XMarkIcon class="w-3.5 h-3.5" />
+                </button>
+            </div>
+            <!-- 右下角：操作按钮 -->
             <div class="flex items-center gap-2">
                 <Button
 v-if="isEditing" variant="outline" size="sm" class="h-7 px-4 text-xs justify-center rounded-full bg-primary/5 border border-primary/20 text-primary/80 hover:bg-primary/5 hover:text-primary cursor-pointer"
@@ -48,11 +85,24 @@ variant="default" size="sm"
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import dayjs from 'dayjs'
+import customParseFormat from 'dayjs/plugin/customParseFormat'
+import { CalendarDate, type DateValue } from '@internationalized/date'
 import { Button } from '@/components/ui/button/index'
+import { Input } from '@/components/ui/input'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useMemoStore } from '@/stores/memo'
-import { PaperAirplaneIcon } from '@heroicons/vue/24/outline'
+import { PaperAirplaneIcon, CalendarIcon, ClockIcon, XMarkIcon } from '@heroicons/vue/24/outline'
+
+dayjs.extend(customParseFormat)
+
+// Markdown 标志：heroicons 无此图标，内联官方 Markdown mark（纯展示）
+const MarkdownIcon = {
+  template: `<svg viewBox="0 0 208 128" xmlns="http://www.w3.org/2000/svg"><rect width="198" height="118" x="5" y="5" ry="10" fill="none" stroke="currentColor" stroke-width="10"/><path fill="currentColor" d="M30 98V30h20l20 25 20-25h20v68H90V59L70 84 50 59v39zm125 0l-30-33h20V30h20v35h20z"/></svg>`,
+}
 
 interface Props {
     placeholder?: string
@@ -72,6 +122,58 @@ const content = ref('')
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
 const submitBtnText = computed(() => props.submitText || t('memo.publish'))
+
+// ── 发布时间 ──────────────────────────────────────────────
+// publishDateTime：已「明确设定」的发布时间。空 = 发布时用当前时间。
+//   只有用户真正操作过（在日历选了日期 / 改了输入框）才写入，
+//   仅打开面板看一眼不算。决定图标显示与提交的值。
+// dateTimeDraft：时间选择面板内的工作副本，打开面板时初始化。
+// 内部统一用 'YYYY-MM-DD HH:mm:ss'，提交时转 ISO 给后端。
+const publishDateTime = ref('')
+const dateTimeDraft = ref('')
+
+// 日历面板与草稿字符串的桥接（与文章设置抽屉同套思路）
+const calendarValue = computed<DateValue | undefined>({
+  get: () => {
+    const d = dateTimeDraft.value ? dayjs(dateTimeDraft.value, 'YYYY-MM-DD HH:mm:ss', true) : null
+    return d && d.isValid() ? new CalendarDate(d.year(), d.month() + 1, d.date()) : undefined
+  },
+  set: (val) => {
+    if (!val) return
+    // 选日期时保留草稿里已有的时分秒
+    const base = dateTimeDraft.value && dayjs(dateTimeDraft.value, 'YYYY-MM-DD HH:mm:ss', true).isValid()
+      ? dayjs(dateTimeDraft.value, 'YYYY-MM-DD HH:mm:ss', true)
+      : dayjs()
+    const next = base.year(val.year).month(val.month - 1).date(val.day).format('YYYY-MM-DD HH:mm:ss')
+    dateTimeDraft.value = next
+    publishDateTime.value = next // 选了日期 = 明确设定
+  },
+})
+
+// 输入框：输入中途的非法串只改草稿，失焦/回车才校验。合法即视为明确设定。
+function commitDateTime() {
+  const parsed = dayjs(dateTimeDraft.value, 'YYYY-MM-DD HH:mm:ss', true)
+  if (parsed.isValid()) {
+    dateTimeDraft.value = parsed.format('YYYY-MM-DD HH:mm:ss')
+    publishDateTime.value = dateTimeDraft.value // 改了输入框 = 明确设定
+  } else {
+    // 非法：回滚到已设定值，未设定过则回到当前时间起点
+    dateTimeDraft.value = publishDateTime.value || dayjs().format('YYYY-MM-DD HH:mm:ss')
+  }
+}
+
+function clearPublishDateTime() {
+  publishDateTime.value = ''
+  dateTimeDraft.value = ''
+}
+
+// 打开面板时初始化草稿：已设定过就用设定值，否则用当前时间作为起点。
+// 起点只是展示用，不写入 publishDateTime——不真正改动就不算「已设定」。
+function onPickerOpen(open: boolean) {
+  if (open) {
+    dateTimeDraft.value = publishDateTime.value || dayjs().format('YYYY-MM-DD HH:mm:ss')
+  }
+}
 
 // Typewriter placeholder
 const placeholderKeys = [
@@ -299,11 +401,16 @@ function handleKeydown(event: KeyboardEvent) {
 function handleSubmit() {
     if (!canSubmit.value) return
 
-    console.log('MemoInput emitting submit:', content.value.trim())
-    emit('submit', content.value.trim())
+    // 空 = 用当前时间；否则转 ISO（RFC3339）给后端解析
+    const createdAt = publishDateTime.value
+        ? dayjs(publishDateTime.value, 'YYYY-MM-DD HH:mm:ss').toISOString()
+        : ''
+    emit('submit', content.value.trim(), createdAt)
     // Keep content if in editing mode, cleaner for parent to handle clear
     if (!props.isEditing) {
         content.value = ''
+        publishDateTime.value = ''
+        dateTimeDraft.value = ''
         showTagSuggestions.value = false // Reset suggestions
         nextTick(() => {
             if (textareaRef.value) {
@@ -325,7 +432,7 @@ function handleCancel() {
 }
 
 const emit = defineEmits<{
-    submit: [content: string]
+    submit: [content: string, createdAt: string]
     cancel: []
 }>()
 
@@ -335,8 +442,16 @@ const setContent = (text: string) => {
     autoResize()
 }
 
+// 编辑闪念时回填发布时间（接收 ISO 字符串，内部转 'YYYY-MM-DD HH:mm:ss'）
+const setDateTime = (iso: string) => {
+    const d = dayjs(iso)
+    publishDateTime.value = d.isValid() ? d.format('YYYY-MM-DD HH:mm:ss') : ''
+}
+
 const clearContent = () => {
     content.value = ''
+    publishDateTime.value = ''
+    dateTimeDraft.value = ''
     showTagSuggestions.value = false
     nextTick(() => {
         if (textareaRef.value) {
@@ -347,6 +462,7 @@ const clearContent = () => {
 
 defineExpose({
     setContent,
+    setDateTime,
     clearContent
 })
 

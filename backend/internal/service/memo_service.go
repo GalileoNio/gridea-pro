@@ -36,17 +36,23 @@ func (s *MemoService) SaveMemos(ctx context.Context, memos []domain.Memo) error 
 	return s.repo.SaveAll(ctx, memos)
 }
 
-func (s *MemoService) CreateMemo(ctx context.Context, content string) (*domain.Memo, error) {
+// CreateMemo 创建闪念。createdAt 为零值时使用当前时间（默认行为），
+// 非零时按调用方指定的发布时间创建——支持前端「设置发布时间」。
+func (s *MemoService) CreateMemo(ctx context.Context, content string, createdAt time.Time) (*domain.Memo, error) {
 	if content == "" {
 		return nil, fmt.Errorf("content is empty")
 	}
 
 	now := time.Now()
+	publishedAt := createdAt
+	if publishedAt.IsZero() {
+		publishedAt = now
+	}
 	newMemo := domain.Memo{
 		Content:   content,
 		Tags:      extractTags(content),
 		Images:    []string{},
-		CreatedAt: now,
+		CreatedAt: publishedAt,
 		UpdatedAt: now,
 	}
 
@@ -88,6 +94,10 @@ func (s *MemoService) UpdateMemo(ctx context.Context, memo domain.Memo) error {
 			memos[i].Tags = memo.Tags
 			memos[i].UpdatedAt = memo.UpdatedAt
 			memos[i].Images = memo.Images
+			// 允许编辑时修改发布时间；零值表示前端未指定，保留原值
+			if !memo.CreatedAt.IsZero() {
+				memos[i].CreatedAt = memo.CreatedAt
+			}
 			found = true
 			break
 		}

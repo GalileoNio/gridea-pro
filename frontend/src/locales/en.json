@@ -12,7 +12,8 @@
         "warning": "Warning",
         "language": "Language",
         "saved": "Saved",
-        "search": "Search"
+        "search": "Search",
+        "clear": "Clear"
     },
     "nav": {
         "preview": "Preview",
@@ -528,7 +529,9 @@
         "renameFailed": "Rename failed",
         "saveFailed": "Save failed",
         "updateFailed": "Update failed",
-        "deleteFailed": "Delete failed"
+        "deleteFailed": "Delete failed",
+        "markdownSupported": "Markdown syntax supported",
+        "setPublishTime": "Set publish time"
     },
     "preferences": {
         "themeMode": "Theme Mode",

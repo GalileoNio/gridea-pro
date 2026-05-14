@@ -12,7 +12,8 @@
         "warning": "Attenzione",
         "language": "Lingua",
         "saved": "Salvato",
-        "search": "Cerca"
+        "search": "Cerca",
+        "clear": "Cancella"
     },
     "nav": {
         "preview": "Anteprima",
@@ -527,7 +528,9 @@
         "renameFailed": "Rinomina fallita",
         "saveFailed": "Salvataggio fallito",
         "updateFailed": "Aggiornamento fallito",
-        "deleteFailed": "Eliminazione fallita"
+        "deleteFailed": "Eliminazione fallita",
+        "markdownSupported": "Sintassi Markdown supportata",
+        "setPublishTime": "Imposta orario di pubblicazione"
     },
     "preferences": {
         "themeMode": "Modalità tema",

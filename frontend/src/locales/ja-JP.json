@@ -12,7 +12,8 @@
         "warning": "警告",
         "language": "言語",
         "saved": "保存しました",
-        "search": "検索"
+        "search": "検索",
+        "clear": "クリア"
     },
     "nav": {
         "preview": "プレビュー",
@@ -527,7 +528,9 @@
         "renameFailed": "名前の変更に失敗しました",
         "saveFailed": "保存に失敗しました",
         "updateFailed": "更新に失敗しました",
-        "deleteFailed": "削除に失敗しました"
+        "deleteFailed": "削除に失敗しました",
+        "markdownSupported": "Markdown 構文に対応",
+        "setPublishTime": "公開日時を設定"
     },
     "preferences": {
         "themeMode": "テーマモード",

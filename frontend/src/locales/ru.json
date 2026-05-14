@@ -12,7 +12,8 @@
         "warning": "Внимание",
         "language": "Язык",
         "saved": "Сохранено",
-        "search": "Поиск"
+        "search": "Поиск",
+        "clear": "Очистить"
     },
     "nav": {
         "preview": "Предпросмотр",
@@ -527,7 +528,9 @@
         "renameFailed": "Ошибка переименования",
         "saveFailed": "Ошибка сохранения",
         "updateFailed": "Ошибка обновления",
-        "deleteFailed": "Ошибка удаления"
+        "deleteFailed": "Ошибка удаления",
+        "markdownSupported": "Поддерживается синтаксис Markdown",
+        "setPublishTime": "Установить время публикации"
     },
     "preferences": {
         "themeMode": "Режим темы",

@@ -12,7 +12,8 @@
         "warning": "경고",
         "language": "언어",
         "saved": "저장됨",
-        "search": "검색"
+        "search": "검색",
+        "clear": "지우기"
     },
     "nav": {
         "preview": "미리보기",
@@ -527,7 +528,9 @@
         "renameFailed": "이름 변경 실패",
         "saveFailed": "저장 실패",
         "updateFailed": "업데이트 실패",
-        "deleteFailed": "삭제 실패"
+        "deleteFailed": "삭제 실패",
+        "markdownSupported": "마크다운 문법 지원",
+        "setPublishTime": "게시 시간 설정"
     },
     "preferences": {
         "themeMode": "테마 모드",

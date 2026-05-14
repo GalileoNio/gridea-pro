@@ -2,9 +2,25 @@ package facade
 
 import (
 	"context"
+	"time"
+
 	"gridea-pro/backend/internal/domain"
 	"gridea-pro/backend/internal/service"
 )
+
+// parseMemoCreatedAt 解析前端传入的发布时间字符串。
+// 空串或无法识别的格式返回零值，CreateMemo 会据此回退到当前时间。
+func parseMemoCreatedAt(s string) time.Time {
+	if s == "" {
+		return time.Time{}
+	}
+	for _, layout := range []string{time.RFC3339, "2006-01-02 15:04:05"} {
+		if t, err := time.ParseInLocation(layout, s, time.Local); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
 
 // MemoFacade wraps MemoService
 type MemoFacade struct {
@@ -35,13 +51,14 @@ func (f *MemoFacade) LoadMemosFromFrontend() (*domain.MemoDashboardDTO, error) {
 	}, nil
 }
 
-// SaveMemoFromFrontend saves a new memo and returns updated list
-func (f *MemoFacade) SaveMemoFromFrontend(content string) (*domain.MemoDashboardDTO, error) {
+// SaveMemoFromFrontend saves a new memo and returns updated list.
+// createdAt 为空串时按当前时间发布；非空时按指定时间发布。
+func (f *MemoFacade) SaveMemoFromFrontend(content string, createdAt string) (*domain.MemoDashboardDTO, error) {
 	ctx := WailsContext
 	if ctx == nil {
 		ctx = context.TODO()
 	}
-	_, err := f.internal.CreateMemo(ctx, content)
+	_, err := f.internal.CreateMemo(ctx, content, parseMemoCreatedAt(createdAt))
 	if err != nil {
 		return nil, err
 	}

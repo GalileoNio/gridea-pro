@@ -94,10 +94,10 @@ export const useMemoStore = defineStore('memo', () => {
         })
     }
 
-    function saveMemo(content: string): Promise<IMemo | undefined> {
+    function saveMemo(content: string, createdAt: string = ''): Promise<IMemo | undefined> {
         return new Promise(async (resolve, reject) => {
             try {
-                const result = await SaveMemoFromFrontend(content)
+                const result = await SaveMemoFromFrontend(content, createdAt)
                 memos.value = (result.memos as IMemo[]) || []
                 stats.value = result.stats as IMemoStats
                 // Find the new memo (first one usually)

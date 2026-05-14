@@ -3,6 +3,8 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"gridea-pro/backend/internal/domain"
 	"gridea-pro/backend/internal/service"
 
@@ -38,7 +40,8 @@ func createMemoHandler(s *service.MemoService) server.ToolHandlerFunc {
 			return mcp.NewToolResultError("content is required"), nil
 		}
 
-		memo, err := s.CreateMemo(ctx, content)
+		// MCP 创建闪念沿用当前时间（传零值）
+		memo, err := s.CreateMemo(ctx, content, time.Time{})
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to create memo: %v", err)), nil
 		}

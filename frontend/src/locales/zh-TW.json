@@ -12,7 +12,8 @@
         "warning": "警告",
         "language": "語言",
         "saved": "已儲存",
-        "search": "搜尋"
+        "search": "搜尋",
+        "clear": "清除"
     },
     "nav": {
         "preview": "預覽",
@@ -527,7 +528,9 @@
         "renameFailed": "重新命名失敗",
         "saveFailed": "儲存失敗",
         "updateFailed": "更新失敗",
-        "deleteFailed": "刪除失敗"
+        "deleteFailed": "刪除失敗",
+        "markdownSupported": "支援 Markdown 語法",
+        "setPublishTime": "設定發布時間"
     },
     "preferences": {
         "themeMode": "主題模式",

@@ -92,6 +92,7 @@ const startEdit = async () => {
     await nextTick()
     if (editorRef.value) {
         editorRef.value.setContent(props.memo.content)
+        editorRef.value.setDateTime(props.memo.createdAt)
     }
 }
 
@@ -99,8 +100,10 @@ const cancelEdit = () => {
     isEditing.value = false
 }
 
-const handleSave = (content: string) => {
+const handleSave = (content: string, createdAt: string) => {
     const updatedMemo = { ...props.memo, content }
+    // createdAt 非空 = 用户改了发布时间；空则保留原时间
+    if (createdAt) updatedMemo.createdAt = createdAt
     emit('update', updatedMemo)
     isEditing.value = false
 }
