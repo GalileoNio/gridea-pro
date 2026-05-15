@@ -46,6 +46,8 @@ pnpm-debug.log*
 # Wails build output
 /wailsjs
 frontend/src/wailsjs
+# wails build --nsis 每次重写的工具库模板，不该手改也不入库（project.nsi 是入库的）
+build/windows/installer/wails_tools.nsh
 
 
 # Go build output
