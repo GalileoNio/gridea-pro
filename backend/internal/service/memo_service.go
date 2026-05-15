@@ -27,7 +27,17 @@ func NewMemoService(repo domain.MemoRepository) *MemoService {
 func (s *MemoService) LoadMemos(ctx context.Context) ([]domain.Memo, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.repo.List(ctx)
+	memos, err := s.repo.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// 按 CreatedAt 倒序——避免「用户改了发布时间但列表位置不动」的错觉。
+	// 存储仍按创建插入顺序（CreateMemo 是 prepend），排序只在读时生效，
+	// 保证所有消费者（前端、Dashboard、MCP）看到的次序一致。
+	sort.SliceStable(memos, func(i, j int) bool {
+		return memos[i].CreatedAt.After(memos[j].CreatedAt)
+	})
+	return memos, nil
 }
 
 func (s *MemoService) SaveMemos(ctx context.Context, memos []domain.Memo) error {
