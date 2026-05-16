@@ -3,7 +3,6 @@ package utils
 import (
 	"bytes"
 
-	"github.com/FurqanSoftware/goldmark-katex"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
@@ -18,13 +17,13 @@ var (
 
 func init() {
 	mdSafe = goldmark.New(
-		goldmark.WithExtensions(extension.GFM, extension.Typographer, &katex.Extender{}),
+		goldmark.WithExtensions(extension.GFM, extension.Typographer, KatexExtension()),
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithRendererOptions(html.WithHardWraps(), html.WithXHTML()),
 	)
 
 	mdUnsafe = goldmark.New(
-		goldmark.WithExtensions(extension.GFM, extension.Typographer, &katex.Extender{}),
+		goldmark.WithExtensions(extension.GFM, extension.Typographer, KatexExtension()),
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithRendererOptions(
 			html.WithHardWraps(),
