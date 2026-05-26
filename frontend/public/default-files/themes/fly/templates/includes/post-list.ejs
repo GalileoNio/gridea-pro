@@ -1,11 +1,29 @@
 <% posts.forEach(function(post) { %>
+<%
+  const postSlug = (post.link || '').split('/').filter(Boolean).pop() || '';
+  const postAssetsPath = postSlug ? `/post/${postSlug}/${postSlug}.assets/` : '';
+  const normalizePostImages = function(html) {
+    if (!postAssetsPath) {
+      return html || '';
+    }
+    return (html || '')
+      .replace(/<img([^>]*?)src="post-images\/([^"]+)"([^>]*)>/g, function(match, before, fileName, after) {
+        const attrs = after.replace(/\s*\/\s*$/, '');
+        return `<img${before}src="${postAssetsPath}${fileName}"${attrs} onerror="this.onerror=null;this.src='/post-images/${fileName}'">`;
+      })
+      .replace(new RegExp(`<img([^>]*?)src="${postSlug}\\.assets\\/([^"]+)"([^>]*)>`, 'g'), function(match, before, fileName, after) {
+        const attrs = after.replace(/\s*\/\s*$/, '');
+        return `<img${before}src="${postAssetsPath}${fileName}"${attrs} onerror="this.onerror=null;this.src='/post-images/${fileName}'">`;
+      });
+  };
+%>
 <section class="post-item">
     <div class="content">
       <a href="<%= post.link %>">
         <h2 class="post-title"><%= post.title %></h2>
       </a>
       <div class="post-abstract">
-        <%- post.abstract %>
+        <%- normalizePostImages(post.abstract) %>
       </div>
       <div class="post-info">
         <span><i class="icon icon-calendar-outline"></i> <%= post.dateFormat %></span>

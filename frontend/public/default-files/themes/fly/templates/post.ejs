@@ -1,5 +1,23 @@
 
 <!DOCTYPE html>
+<%
+  const postSlug = (post.link || '').split('/').filter(Boolean).pop() || '';
+  const postAssetsPath = postSlug ? `/post/${postSlug}/${postSlug}.assets/` : '';
+  const normalizePostImages = function(html) {
+    if (!postAssetsPath) {
+      return html || '';
+    }
+    return (html || '')
+      .replace(/<img([^>]*?)src="post-images\/([^"]+)"([^>]*)>/g, function(match, before, fileName, after) {
+        const attrs = after.replace(/\s*\/\s*$/, '');
+        return `<img${before}src="${postAssetsPath}${fileName}"${attrs} onerror="this.onerror=null;this.src='/post-images/${fileName}'">`;
+      })
+      .replace(new RegExp(`<img([^>]*?)src="${postSlug}\\.assets\\/([^"]+)"([^>]*)>`, 'g'), function(match, before, fileName, after) {
+        const attrs = after.replace(/\s*\/\s*$/, '');
+        return `<img${before}src="${postAssetsPath}${fileName}"${attrs} onerror="this.onerror=null;this.src='/post-images/${fileName}'">`;
+      });
+  };
+%>
 <html>
   <head>
     <%- include('./includes/head', { siteTitle: `${post.title} | ${themeConfig.siteName}` }) %>
@@ -32,7 +50,7 @@
             <% } %>
           </div>
           <div class="post-content" v-pre>
-            <%- post.content %>
+            <%- normalizePostImages(post.content) %>
           </div>
         </div>
 

@@ -161,7 +161,7 @@ func (s *Engine) SetTheme(themeName string) error {
 //  2. 拿到 renderMu 后 Swap(0)：
 //     - 返回 1 → 说明还没人覆盖我的请求，由我来渲染
 //     - 返回 0 → 说明前一个渲染者的 Swap(0) 之后我的 Store(1) 才到达，
-//       且在我等锁时已经有别的渲染者看见并处理了，可以安全跳过
+//     且在我等锁时已经有别的渲染者看见并处理了，可以安全跳过
 //  3. N 个并发请求最多产生 2 次实际渲染（首次 + 合并一次）
 //
 // 详见 Engine 结构体中 renderMu / pending 字段注释。
@@ -236,7 +236,7 @@ func (s *Engine) renderAllImpl(ctx context.Context) error {
 	}
 
 	// 2. 复制站点静态资源（images、media 等）
-	if err := s.assetManager.CopySiteAssets(buildDir); err != nil {
+	if err := s.assetManager.CopySiteAssets(buildDir, themeConfig.PostPath); err != nil {
 		errs = errors.Join(errs, fmt.Errorf("复制站点资源失败: %w", err))
 		s.logger.Error(fmt.Sprintf("警告：复制站点资源失败: %v", err))
 	}

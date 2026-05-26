@@ -364,7 +364,7 @@ func (m *AssetManager) applyStyleOverride(jsPath string) (string, error) {
 }
 
 // CopySiteAssets 复制站点静态资源
-func (m *AssetManager) CopySiteAssets(buildDir string) error {
+func (m *AssetManager) CopySiteAssets(buildDir, postPath string) error {
 	// 复制 images 目录
 	imagesPath := filepath.Join(m.appDir, DirImages)
 	if _, err := os.Stat(imagesPath); err == nil {
@@ -389,10 +389,49 @@ func (m *AssetManager) CopySiteAssets(buildDir string) error {
 		}
 	}
 
+	if err := m.CopyPostAssetDirs(buildDir, postPath); err != nil {
+		return err
+	}
+
 	// 复制 favicon.ico
 	faviconSrc := filepath.Join(m.appDir, "favicon.ico")
 	if _, err := os.Stat(faviconSrc); err == nil {
 		if err := m.manifest.CopyFile(faviconSrc, filepath.Join(buildDir, "favicon.ico")); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// CopyPostAssetDirs copies Typora-style post asset directories to the rendered
+// post directory, e.g. posts/my-post.assets -> output/post/my-post/my-post.assets.
+func (m *AssetManager) CopyPostAssetDirs(buildDir, postPath string) error {
+	postsPath := filepath.Join(m.appDir, "posts")
+	entries, err := os.ReadDir(postsPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	if postPath == "" {
+		postPath = DefaultPostPath
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() || !strings.HasSuffix(entry.Name(), ".assets") {
+			continue
+		}
+
+		postSlug := strings.TrimSuffix(entry.Name(), ".assets")
+		if postSlug == "" {
+			continue
+		}
+
+		srcPath := filepath.Join(postsPath, entry.Name())
+		destPath := filepath.Join(buildDir, postPath, postSlug, entry.Name())
+		if err := m.manifest.CopyDir(srcPath, destPath); err != nil {
 			return err
 		}
 	}
