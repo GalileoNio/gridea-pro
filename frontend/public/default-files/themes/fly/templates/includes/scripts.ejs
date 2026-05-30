@@ -1,3 +1,4 @@
+<script src="/scripts/transliteration.umd.min.js"></script>
 <script type="application/javascript">
 
 hljs.initHighlightingOnLoad()
@@ -8,6 +9,262 @@ var app = new Vue({
     menuVisible: false,
   },
 })
+
+;(function () {
+  var searchToggle = document.querySelector('[data-search-toggle]')
+  var searchContainer = document.querySelector('[data-search-container]')
+  var searchClose = document.querySelector('[data-search-close]')
+  var searchInput = document.getElementById('search-input')
+  var searchResults = document.getElementById('search-results')
+  var searchIndex = []
+  var searchLoaded = false
+  var searchLoading = false
+
+  if (!searchToggle || !searchContainer || !searchInput || !searchResults) {
+    return
+  }
+
+  function openSearch() {
+    searchContainer.classList.add('is-active')
+    if (app) {
+      app.menuVisible = false
+    }
+    loadSearchIndex()
+    setTimeout(function () {
+      searchInput.focus()
+    }, 0)
+  }
+
+  function closeSearch() {
+    searchContainer.classList.remove('is-active')
+  }
+
+  function loadSearchIndex() {
+    if (searchLoaded || searchLoading) {
+      return
+    }
+
+    searchLoading = true
+    renderSearchMessage('正在搜索...')
+    fetch('/api/search.json')
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('Failed to load search index')
+        }
+        return response.json()
+      })
+      .then(function (posts) {
+        searchIndex = Array.isArray(posts) ? posts : []
+        buildPinyinSearchIndex()
+        searchLoaded = true
+        searchPosts()
+      })
+      .catch(function () {
+        renderSearchMessage('搜索数据加载失败')
+      })
+      .finally(function () {
+        searchLoading = false
+      })
+  }
+
+  function searchPosts() {
+    var query = searchInput.value.trim().toLowerCase()
+    var compactQuery = compactSearchText(query)
+
+    if (!query) {
+      renderSearchMessage('输入关键词开始搜索')
+      return
+    }
+
+    if (!searchLoaded) {
+      renderSearchMessage('正在搜索...')
+      return
+    }
+
+    var results = searchIndex
+      .map(function (post) {
+        return scoreSearchPost(post, query, compactQuery)
+      })
+      .filter(function (result) {
+        return result.score > 0
+      })
+      .sort(function (a, b) {
+        return b.score - a.score
+      })
+      .slice(0, 10)
+
+    if (!results.length) {
+      renderSearchMessage('没有找到相关文章')
+      return
+    }
+
+    searchResults.innerHTML = results.map(function (result) {
+      var post = result.post
+      var title = highlightSearchText(post.title || '', query)
+      var content = highlightSearchText(createSearchExcerpt(post.content || '', query, result.contentIndex), query)
+      return '<a class="search-result" href="' + escapeAttribute(post.link || '#') + '">' +
+        '<div class="search-result-title">' + title + '</div>' +
+        '<div class="search-result-content">' + content + '</div>' +
+      '</a>'
+    }).join('')
+  }
+
+  function renderSearchMessage(message) {
+    searchResults.innerHTML = '<div class="search-empty">' + escapeHtml(message) + '</div>'
+  }
+
+  function createSearchExcerpt(content, query, knownIndex) {
+    var lowerContent = content.toLowerCase()
+    var index = typeof knownIndex === 'number' ? knownIndex : lowerContent.indexOf(query)
+
+    if (index === -1) {
+      return content.slice(0, 120)
+    }
+
+    var start = Math.max(index - 45, 0)
+    var end = Math.min(index + query.length + 75, content.length)
+    return (start > 0 ? '...' : '') + content.slice(start, end) + (end < content.length ? '...' : '')
+  }
+
+  function highlightSearchText(text, query) {
+    var escapedText = escapeHtml(text)
+    var escapedQuery = escapeRegExp(query)
+    return escapedText.replace(new RegExp('(' + escapedQuery + ')', 'ig'), '<mark>$1</mark>')
+  }
+
+  function scoreSearchPost(post, query, compactQuery) {
+    var title = (post.title || '').toLowerCase()
+    var content = (post.content || '').toLowerCase()
+    var tags = ((post.tags || []).join(' ')).toLowerCase()
+    var contentIndex = content.indexOf(query)
+    var score = 0
+
+    if (title.indexOf(query) > -1) {
+      score += 100
+    }
+    if (tags.indexOf(query) > -1) {
+      score += 70
+    }
+    if (contentIndex > -1) {
+      score += 20
+    }
+
+    if (compactQuery && post._pinyinSearch) {
+      if (post._pinyinSearch.title.indexOf(query) > -1 || post._pinyinSearch.titleCompact.indexOf(compactQuery) > -1) {
+        score += 90
+      }
+      if (post._pinyinSearch.titleInitials.indexOf(compactQuery) > -1) {
+        score += 75
+      }
+      if (post._pinyinSearch.tags.indexOf(query) > -1 || post._pinyinSearch.tagsCompact.indexOf(compactQuery) > -1) {
+        score += 60
+      }
+      if (post._pinyinSearch.tagsInitials.indexOf(compactQuery) > -1) {
+        score += 45
+      }
+      if (post._pinyinSearch.content.indexOf(query) > -1 || post._pinyinSearch.contentCompact.indexOf(compactQuery) > -1) {
+        score += 10
+      }
+      if (post._pinyinSearch.contentInitials.indexOf(compactQuery) > -1) {
+        score += 6
+      }
+    }
+
+    return {
+      post: post,
+      score: score,
+      contentIndex: contentIndex,
+    }
+  }
+
+  function buildPinyinSearchIndex() {
+    searchIndex.forEach(function (post) {
+      if (post._pinyinSearch) {
+        return
+      }
+
+      var tagText = (post.tags || []).join(' ')
+      post._pinyinSearch = {
+        title: toPinyinWords(post.title || ''),
+        titleCompact: toPinyinCompact(post.title || ''),
+        titleInitials: toPinyinInitials(post.title || ''),
+        tags: toPinyinWords(tagText),
+        tagsCompact: toPinyinCompact(tagText),
+        tagsInitials: toPinyinInitials(tagText),
+        content: toPinyinWords(post.content || ''),
+        contentCompact: toPinyinCompact(post.content || ''),
+        contentInitials: toPinyinInitials(post.content || ''),
+      }
+    })
+  }
+
+  function toPinyinWords(text) {
+    return transliterateText(text)
+  }
+
+  function toPinyinCompact(text) {
+    return compactSearchText(transliterateText(text))
+  }
+
+  function toPinyinInitials(text) {
+    return transliterateText(text)
+      .split(/\s+/)
+      .map(function (word) {
+        return word.charAt(0)
+      })
+      .join('')
+  }
+
+  function transliterateText(text) {
+    if (!window.transliteration || typeof window.transliteration.transliterate !== 'function') {
+      return ''
+    }
+
+    return window.transliteration.transliterate(String(text || ''))
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  function compactSearchText(text) {
+    return String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+  }
+
+  function escapeAttribute(text) {
+    return escapeHtml(text).replace(/`/g, '&#096;')
+  }
+
+  function escapeRegExp(text) {
+    return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  }
+
+  searchToggle.addEventListener('click', openSearch)
+  if (searchClose) {
+    searchClose.addEventListener('click', closeSearch)
+  }
+  searchContainer.addEventListener('click', function (event) {
+    if (event.target === searchContainer) {
+      closeSearch()
+    }
+  })
+  searchInput.addEventListener('input', searchPosts)
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+      closeSearch()
+    }
+  })
+})()
 
 </script>
 
@@ -48,5 +305,29 @@ var app = new Vue({
     </script>
   <% } %>
 
-<% } %>
+  <% if (['Giscus', 'giscus', 'Gitcus', 'gitcus'].includes(commentSetting.commentPlatform)) { %>
+    <script>
+      var giscusContainer = document.getElementById('giscus-container')
 
+      if (giscusContainer) {
+        var giscusScript = document.createElement('script')
+        giscusScript.src = 'https://giscus.app/client.js'
+        giscusScript.setAttribute('data-repo', '<%= commentSetting.repo %>')
+        giscusScript.setAttribute('data-repo-id', '<%= commentSetting.repoId %>')
+        giscusScript.setAttribute('data-category', '<%= commentSetting.category %>')
+        giscusScript.setAttribute('data-category-id', '<%= commentSetting.categoryId %>')
+        giscusScript.setAttribute('data-mapping', 'pathname')
+        giscusScript.setAttribute('data-strict', '0')
+        giscusScript.setAttribute('data-reactions-enabled', '1')
+        giscusScript.setAttribute('data-emit-metadata', '0')
+        giscusScript.setAttribute('data-input-position', 'top')
+        giscusScript.setAttribute('data-theme', 'preferred_color_scheme')
+        giscusScript.setAttribute('data-lang', 'zh-CN')
+        giscusScript.crossOrigin = 'anonymous'
+        giscusScript.async = true
+        giscusContainer.appendChild(giscusScript)
+      }
+    </script>
+  <% } %>
+
+<% } %>

@@ -9,5 +9,8 @@
       <% } %>
     <% }) %>
   </div>
-  <%- themeConfig.footerInfo %> | <a class="rss" href="/feed.xml" target="_blank">RSS</a>
+  <%- themeConfig.footerInfo %>
+  <% if (themeConfig.feedEnabled) { %>
+    | <a class="rss" href="/feed.xml" target="_blank" rel="noopener noreferrer">RSS</a>
+  <% } %>
 </div>

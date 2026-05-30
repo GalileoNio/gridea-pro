@@ -4,13 +4,97 @@
     <%- include('./includes/head', { siteTitle: themeConfig.siteName }) %>
   </head>
   <body>
-    <div id="app" class="main">
+    <div id="app" class="main home-main">
       <%- include('./includes/header') %>
 
-      <div class="content-container">
-        
-        <%- include('./includes/post-list') %>
+      <div class="content-container home-content-container">
+        <main class="home-posts">
+          <%- include('./includes/post-list') %>
+        </main>
 
+        <% const homeMemos = typeof memos !== 'undefined' && memos ? memos.slice(0, 5) : []; %>
+        <% const homeTags = typeof tags !== 'undefined' && tags ? tags.slice(0, 20) : []; %>
+        <% const homeLinks = site && site.customConfig && site.customConfig.links ? site.customConfig.links.slice(0, 8) : []; %>
+        <% const memosPath = themeConfig.memosPath || 'memos'; %>
+        <% const tagsPath = themeConfig.tagsPath || 'tags'; %>
+        <% const linksPath = themeConfig.linkPath || 'links'; %>
+        <aside class="home-sidebar" aria-label="首页侧边栏">
+          <section class="home-sidebar-section">
+            <div class="home-sidebar-header">
+              <h2>闪念</h2>
+              <a class="home-sidebar-more" href="/<%= memosPath %>/" aria-label="全部闪念">
+                <i class="icon-arrow-ios-forward-outline" aria-hidden="true"></i>
+              </a>
+            </div>
+
+            <% if (homeMemos.length > 0) { %>
+              <div class="home-memos-list">
+                <% homeMemos.forEach(function(memo) { %>
+                  <article class="home-memo-item">
+                    <div class="home-memo-content">
+                      <%- memo.content %>
+                    </div>
+                    <time class="home-memo-date"><%= memo.dateFormat || memo.createdAt || '' %></time>
+                  </article>
+                <% }); %>
+              </div>
+            <% } else { %>
+              <div class="home-sidebar-empty">暂无闪念</div>
+            <% } %>
+          </section>
+
+          <section class="home-sidebar-section">
+            <div class="home-sidebar-header">
+              <h2>标签</h2>
+              <a class="home-sidebar-more" href="/<%= tagsPath %>/" aria-label="全部标签">
+                <i class="icon-arrow-ios-forward-outline" aria-hidden="true"></i>
+              </a>
+            </div>
+
+            <% if (homeTags.length > 0) { %>
+              <div class="home-tags-list">
+                <% homeTags.forEach(function(tag) { %>
+                  <a class="home-tag" href="<%= tag.link %>"><%= tag.name %></a>
+                <% }); %>
+              </div>
+            <% } else { %>
+              <div class="home-sidebar-empty">暂无标签</div>
+            <% } %>
+          </section>
+
+          <section class="home-sidebar-section">
+            <div class="home-sidebar-header">
+              <h2>友链</h2>
+              <a class="home-sidebar-more" href="/<%= linksPath %>/" aria-label="全部友链">
+                <i class="icon-arrow-ios-forward-outline" aria-hidden="true"></i>
+              </a>
+            </div>
+
+            <% if (homeLinks.length > 0) { %>
+              <div class="home-links-list">
+                <% homeLinks.forEach(function(friend) { %>
+                  <% const friendName = friend.siteName || friend.name || ''; %>
+                  <% const friendLink = friend.siteLink || friend.url || '#'; %>
+                  <a class="home-friend" href="<%= friendLink %>" target="_blank" rel="noopener noreferrer">
+                    <% if (friend.avatar) { %>
+                      <img class="home-friend-avatar" src="<%= friend.avatar %>" alt="<%= friendName %>">
+                    <% } else { %>
+                      <span class="home-friend-avatar home-friend-avatar-placeholder"><%= friendName.slice(0, 1) %></span>
+                    <% } %>
+                    <span class="home-friend-info">
+                      <strong><%= friendName %></strong>
+                      <% if (friend.description) { %>
+                        <span><%= friend.description %></span>
+                      <% } %>
+                    </span>
+                  </a>
+                <% }); %>
+              </div>
+            <% } else { %>
+              <div class="home-sidebar-empty">暂无友链</div>
+            <% } %>
+          </section>
+        </aside>
       </div>
 
       <%- include('./includes/footer') %>

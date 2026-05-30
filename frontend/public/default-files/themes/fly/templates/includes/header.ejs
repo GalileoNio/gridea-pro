@@ -9,6 +9,9 @@
       </a>
     </div>
     <div class="right">
+      <button class="search-toggle" type="button" title="搜索" aria-label="搜索" data-search-toggle>
+        <i class="icon icon-search-outline"></i>
+      </button>
       <transition name="fade">
         <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
       </transition>
@@ -16,16 +19,36 @@
   </div>
 </div>
 
+<div class="search-container" data-search-container>
+    <div class="search-panel">
+      <div class="search-header">
+        <input
+          id="search-input"
+          class="search-input"
+          type="search"
+          placeholder="搜索标题和正文"
+        >
+        <button class="search-close" type="button" title="关闭" aria-label="关闭" data-search-close>
+          <i class="icon icon-close-outline"></i>
+        </button>
+      </div>
+      <div class="search-body" id="search-results">
+        <div class="search-empty">输入关键词开始搜索</div>
+      </div>
+    </div>
+  </div>
+
 <transition name="fade">
   <div class="menu-container" style="display: none;" v-show="menuVisible">
     <div class="menu-list">
       <% menus.forEach(function(menu) { %>
+        <% const menuLink = menu.link === '/posts' ? '/post/' : menu.link; %>
         <% if (menu.openType === 'External') { %>
-          <a class="menu purple-link" href="<%= menu.link %>" class="menu" target="_blank">
+          <a class="menu purple-link" href="<%= menuLink %>" class="menu" target="_blank">
             <%= menu.name %>
           </a>
         <% } else { %>
-          <a href="<%= menu.link %>" class="menu purple-link">
+          <a href="<%= menuLink %>" class="menu purple-link">
             <%= menu.name %>
           </a>
         <% } %>

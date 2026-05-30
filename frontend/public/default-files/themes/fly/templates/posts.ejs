@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <%- include('./includes/head', { siteTitle: `全部文章 | ${themeConfig.siteName}` }) %>
+  </head>
+  <body>
+    <div id="app" class="main">
+      <%- include('./includes/header') %>
+
+      <div class="content-container">
+        <div class="page-title-container">
+          <h2 class="page-title">全部文章</h2>
+        </div>
+
+        <% const blogPosts = typeof posts !== 'undefined' ? posts : []; %>
+        <% const blogPagination = typeof pagination !== 'undefined' ? pagination : {}; %>
+        <% if (blogPosts && blogPosts.length > 0) { %>
+          <%- include('./includes/post-list', { posts: blogPosts, pagination: blogPagination }) %>
+        <% } else { %>
+          <div class="empty-state">暂无文章</div>
+        <% } %>
+      </div>
+
+      <%- include('./includes/footer') %>
+    </div>
+    <%- include('./includes/scripts') %>
+  </body>
+</html>

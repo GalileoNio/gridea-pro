@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <%- include('./includes/head', { siteTitle: `友链 | ${themeConfig.siteName}` }) %>
+  </head>
+  <body>
+    <div id="app" class="main">
+      <%- include('./includes/header') %>
+
+      <div class="content-container">
+        <div class="page-title-container">
+          <h2 class="page-title">友链</h2>
+        </div>
+
+        <div class="links-container">
+          <% const friendLinks = typeof links !== 'undefined' ? links : ((site && site.customConfig && site.customConfig.links) || []); %>
+          <% if (friendLinks && friendLinks.length > 0) { %>
+            <% friendLinks.forEach(function(friend) { %>
+              <% const friendName = friend.siteName || friend.name || ''; %>
+              <% const friendLink = friend.siteLink || friend.url || '#'; %>
+              <a class="friend-card" href="<%= friendLink %>" target="_blank" rel="noopener noreferrer">
+                <% if (friend.avatar) { %>
+                  <img class="friend-avatar" src="<%= friend.avatar %>" alt="<%= friendName %>">
+                <% } else { %>
+                  <span class="friend-avatar friend-avatar-placeholder"><%= friendName.slice(0, 1) %></span>
+                <% } %>
+                <span class="friend-info">
+                  <strong><%= friendName %></strong>
+                  <% if (friend.description) { %>
+                    <span><%= friend.description %></span>
+                  <% } %>
+                </span>
+              </a>
+            <% }); %>
+          <% } else { %>
+            <div class="empty-state">暂无友链</div>
+          <% } %>
+        </div>
+      </div>
+
+      <%- include('./includes/footer') %>
+    </div>
+    <%- include('./includes/scripts') %>
+  </body>
+</html>

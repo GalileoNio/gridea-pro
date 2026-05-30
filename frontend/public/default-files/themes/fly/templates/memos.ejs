@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <%- include('./includes/head', { siteTitle: `闪念 | ${themeConfig.siteName}` }) %>
+  </head>
+  <body>
+    <div id="app" class="main">
+      <%- include('./includes/header') %>
+
+      <div class="content-container">
+        <div class="page-title-container">
+          <h2 class="page-title">闪念</h2>
+        </div>
+
+        <% const memoList = typeof memos !== 'undefined' ? memos : []; %>
+        <% if (memoList && memoList.length > 0) { %>
+          <div class="memos-container">
+            <% memoList.forEach(function(memo) { %>
+              <article class="memo-card">
+                <div class="memo-content">
+                  <%- memo.content %>
+                </div>
+                <% if (memo.tags && memo.tags.length > 0) { %>
+                  <div class="memo-tags">
+                    <% memo.tags.forEach(function(tag) { %>
+                      <span class="memo-tag"># <%= tag %></span>
+                    <% }); %>
+                  </div>
+                <% } %>
+                <time class="memo-date"><%= memo.dateFormat || memo.createdAt || '' %></time>
+              </article>
+            <% }); %>
+          </div>
+        <% } else { %>
+          <div class="empty-state">暂无闪念</div>
+        <% } %>
+      </div>
+
+      <%- include('./includes/footer') %>
+    </div>
+    <%- include('./includes/scripts') %>
+  </body>
+</html>

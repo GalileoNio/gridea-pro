@@ -10,7 +10,10 @@
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
 <link rel="shortcut icon" href="/favicon.ico?v=<%= site.utils.now %>">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
-<link rel="stylesheet" href="/styles/main.css">
+<link rel="stylesheet" href="/styles/main.css?v=<%= site.utils.now %>">
+<% if (themeConfig.feedEnabled) { %>
+  <link rel="alternate" type="application/rss+xml" title="<%= themeConfig.siteName %>" href="/feed.xml">
+<% } %>
 
 <% if (typeof commentSetting !== 'undefined' && commentSetting.showComment) { %>
   <% if (commentSetting.commentPlatform === 'gitalk') { %>

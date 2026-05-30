@@ -17,63 +17,80 @@
         return `<img${before}src="${postAssetsPath}${fileName}"${attrs} onerror="this.onerror=null;this.src='/post-images/${fileName}'">`;
       });
   };
+  const commentsEnabled = typeof commentSetting !== 'undefined' && commentSetting.showComment;
 %>
 <html>
   <head>
     <%- include('./includes/head', { siteTitle: `${post.title} | ${themeConfig.siteName}` }) %>
   </head>
   <body>
-    <div id="app" class="main">
+    <div id="app" class="main post-main">
       <%- include('./includes/header') %>
 
-      <div class="content-container">
-        <div class="post-detail">
-          <% if (themeConfig.showFeatureImage && post.feature) { %>
-            <div class="feature-container" style="background-image: url('<%= post.feature %>')">
+      <div class="content-container post-content-container">
+        <div class="post-layout <%= commentsEnabled ? 'has-comment-sidebar' : '' %>">
+          <main class="post-primary">
+            <div class="post-detail">
+              <% if (themeConfig.showFeatureImage && post.feature) { %>
+                <div class="feature-container">
+                  <img class="post-feature-image" src="<%= post.feature %>" alt="<%= post.title %>">
+                </div>
+              <% } %>
+              <h2 class="post-title"><%= post.title %></h2>
+              <div class="post-info post-detail-info">
+                <span><i class="icon-calendar-outline"></i> <%= post.dateFormat %></span>
+                <% if (post.tags.length > 0) { %>
+                  <span>
+                    <i class="icon-pricetags-outline"></i>
+                    <% post.tags.forEach(function(tag, index) { %>
+                      <a href="<%= tag.link %>">
+                        <%= tag.name %>
+                        <% if (index !== post.tags.length - 1) { %>
+                          ，
+                        <% } %>
+                      </a>
+                    <% }); %>
+                  </span>
+                <% } %>
+              </div>
+              <div class="post-content" v-pre>
+                <%- normalizePostImages(post.content) %>
+              </div>
             </div>
-          <% } %>
-          <h2 class="post-title"><%= post.title %></h2>
-          <div class="post-info post-detail-info">
-            <span><i class="icon-calendar-outline"></i> <%= post.dateFormat %></span>
-            <% if (post.tags.length > 0) { %>
-              <span>
-                <i class="icon-pricetags-outline"></i>
-                <% post.tags.forEach(function(tag, index) { %>
-                  <a href="<%= tag.link %>">
-                    <%= tag.name %>
-                    <% if (index !== post.tags.length - 1) { %>
-                      ，
-                    <% } %>
-                  </a>
-                <% }); %>
-              </span>
+
+            <% if (post.nextPost && !post.hideInList) { %>
+              <div class="next-post">
+                <a class="purple-link" href="<%= post.nextPost.link %>">
+                  <h3 class="post-title">
+                    下一篇：<%= post.nextPost.title %>
+                  </h3>
+                </a>
+              </div>
             <% } %>
-          </div>
-          <div class="post-content" v-pre>
-            <%- normalizePostImages(post.content) %>
-          </div>
-        </div>
+          </main>
 
-        <% if (post.nextPost && !post.hideInList) { %>
-          <div class="next-post">
-            <a class="purple-link" href="<%= post.nextPost.link %>">
-              <h3 class="post-title">
-                下一篇：<%= post.nextPost.title %>
-              </h3>
-            </a>
-          </div>
+          <% if (commentsEnabled) { %>
+            <aside class="post-comment-sidebar" aria-label="评论区">
+              <div class="post-comment-sidebar-inner">
+                <h2 class="post-comment-title">评论</h2>
+                <% if (commentSetting.commentPlatform === 'gitalk') { %>
+                  <div id="gitalk-container"></div>
+                <% } %>
+
+                <% if (['Giscus', 'giscus', 'Gitcus', 'gitcus'].includes(commentSetting.commentPlatform)) { %>
+                  <section class="giscus-container">
+                    <div id="giscus-container"></div>
+                  </section>
+                <% } %>
+
+                <% if (commentSetting.commentPlatform === 'disqus') { %>
+                  <div id="disqus_thread"></div>
+                <% } %>
+              </div>
+            </aside>
           <% } %>
+        </div>
       </div>
-
-      <% if (typeof commentSetting !== 'undefined' && commentSetting.showComment) { %>
-        <% if (commentSetting.commentPlatform === 'gitalk') { %>
-          <div id="gitalk-container"></div>
-        <% } %>
-
-        <% if (commentSetting.commentPlatform === 'disqus') { %>
-          <div id="disqus_thread"></div>
-        <% } %>
-      <% } %>
 
       <%- include('./includes/footer') %>
 
