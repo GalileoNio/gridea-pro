@@ -1,29 +1,50 @@
 <% posts.forEach(function(post) { %>
 <%
-  const postSlug = (post.link || '').split('/').filter(Boolean).pop() || '';
-  const postAssetsPath = postSlug ? `/post/${postSlug}/${postSlug}.assets/` : '';
-  const normalizePostImages = function(html) {
-    if (!postAssetsPath) {
-      return html || '';
-    }
-    return (html || '')
-      .replace(/<img([^>]*?)src="post-images\/([^"]+)"([^>]*)>/g, function(match, before, fileName, after) {
-        const attrs = after.replace(/\s*\/\s*$/, '');
-        return `<img${before}src="${postAssetsPath}${fileName}"${attrs} onerror="this.onerror=null;this.src='/post-images/${fileName}'">`;
+  const decodeHtmlEntity = function(text) {
+    return String(text || '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'")
+      .replace(/&#39;/g, "'")
+      .replace(/&#x2F;/g, '/')
+      .replace(/&hellip;/g, '…')
+      .replace(/&mdash;/g, '—')
+      .replace(/&ndash;/g, '–');
+  };
+  const htmlToMarkdownText = function(html) {
+    return decodeHtmlEntity(String(html || '')
+      .replace(/<img\b([^>]*?)>/gi, function(match, attrs) {
+        const altMatch = attrs.match(/\salt=(["'])(.*?)\1/i);
+        const srcMatch = attrs.match(/\ssrc=(["'])(.*?)\1/i);
+        const alt = altMatch ? altMatch[2] : '';
+        const src = srcMatch ? srcMatch[2] : '';
+        return src ? `![${alt}](${src})` : '';
       })
-      .replace(new RegExp(`<img([^>]*?)src="${postSlug}\\.assets\\/([^"]+)"([^>]*)>`, 'g'), function(match, before, fileName, after) {
-        const attrs = after.replace(/\s*\/\s*$/, '');
-        return `<img${before}src="${postAssetsPath}${fileName}"${attrs} onerror="this.onerror=null;this.src='/post-images/${fileName}'">`;
-      });
+      .replace(/<a\b[^>]*?href=(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi, function(match, quote, href, text) {
+        return `[${text.replace(/<[^>]*>/g, '')}](${href})`;
+      })
+      .replace(/<(strong|b)>([\s\S]*?)<\/\1>/gi, '**$2**')
+      .replace(/<(em|i)>([\s\S]*?)<\/\1>/gi, '*$2*')
+      .replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, '`$1`')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n')
+      .replace(/<\/?(p|div|section|article|blockquote|ul|ol|li|h[1-6])[^>]*>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/[ \t]{2,}/g, ' ')
+      .trim());
   };
 %>
-<section class="post-item">
+<section class="post-item" data-category-slugs="<%= (post.categories || []).map(function(category) { return category.slug }).join(' ') %>">
     <div class="content">
       <a href="<%= post.link %>">
         <h2 class="post-title"><%= post.title %></h2>
       </a>
       <div class="post-abstract">
-        <%- normalizePostImages(post.abstract) %>
+        <%= htmlToMarkdownText(post.abstract) %>
       </div>
       <div class="post-info">
         <span><i class="icon icon-calendar-outline"></i> <%= post.dateFormat %></span>

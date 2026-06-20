@@ -29,6 +29,36 @@
 
       <div class="content-container post-content-container">
         <div class="post-layout <%= commentsEnabled ? 'has-comment-sidebar' : '' %>">
+          <aside class="post-action-sidebar" aria-label="文章工具栏">
+            <button class="post-action-button" type="button" aria-label="回到顶部" data-scroll-top>
+              <i class="icon icon-arrow-upward-outline" aria-hidden="true"></i>
+            </button>
+            <div class="post-action-metric" title="阅读时间">
+              <i class="icon icon-flash-outline" aria-hidden="true"></i>
+              <span><%= post.stats && post.stats.minutes ? post.stats.minutes : 1 %></span>
+            </div>
+            <div class="post-action-metric" title="字数">
+              <i class="icon icon-edit-2-outline" aria-hidden="true"></i>
+              <span><%= post.stats && post.stats.words ? post.stats.words : 0 %></span>
+            </div>
+            <% if (commentsEnabled) { %>
+              <a class="post-action-button" href="#post-comments" aria-label="跳转到评论">
+                <i class="icon icon-message-square-outline" aria-hidden="true"></i>
+              </a>
+            <% } %>
+            <button class="post-action-button" type="button" aria-label="分享文章" data-post-share>
+              <i class="icon icon-share-outline" aria-hidden="true"></i>
+            </button>
+            <button class="post-action-button" type="button" aria-label="收藏文章" data-post-bookmark>
+              <svg class="post-action-svg bookmark-outline-svg" viewBox="0 0 1024 1024" aria-hidden="true">
+                <path transform="translate(0 1024) scale(1 -1)" d="M259.84 61.44c-23.564 0-42.667 19.103-42.667 42.667v0l-6.4 625.493c-0.050 1.163-0.079 2.527-0.079 3.898 0 52.082 41.291 94.521 92.924 96.364l0.168 0.005 409.173 2.133c52.758-0.951 95.162-43.943 95.162-96.839 0-0.605-0.006-1.209-0.017-1.812l0.001 0.090 5.973-625.493c0.001-0.124 0.002-0.271 0.002-0.418 0-15.536-8.304-29.133-20.716-36.595l-0.193-0.107c-6.12-3.594-13.479-5.716-21.333-5.716s-15.214 2.123-21.535 5.825l0.201-0.109-243.2 134.827-225.707-137.813c-6.275-3.57-13.697-5.88-21.609-6.392l-0.151-0.008zM505.6 298.24c7.786-0.014 15.126-1.905 21.598-5.244l-0.265 0.124 200.96-111.36-5.12 552.533c0 8.533-5.547 14.507-8.96 14.080l-409.6-3.84c-3.413 0-8.107-5.547-8.107-14.080l5.12-550.4 182.613 112.213c6.251 3.642 13.735 5.843 21.722 5.973h0.038z" />
+              </svg>
+              <svg class="post-action-svg bookmark-filled-svg" viewBox="0 0 1024 1024" aria-hidden="true">
+                <path transform="translate(0 1024) scale(1 -1)" d="M259.84 61.44c-23.564 0-42.667 19.103-42.667 42.667v0l-6.4 625.493c-0.050 1.163-0.079 2.527-0.079 3.898 0 52.082 41.291 94.521 92.924 96.364l0.168 0.005 409.173 2.133c52.758-0.951 95.162-43.943 95.162-96.839 0-0.605-0.006-1.209-0.017-1.812l0.001 0.090 5.973-625.493c0.001-0.124 0.002-0.271 0.002-0.418 0-15.536-8.304-29.133-20.716-36.595l-0.193-0.107c-6.12-3.594-13.479-5.716-21.333-5.716s-15.214 2.123-21.535 5.825l0.201-0.109-243.2 134.827-225.707-137.813c-6.275-3.57-13.697-5.88-21.609-6.392l-0.151-0.008z" />
+              </svg>
+            </button>
+          </aside>
+
           <main class="post-primary">
             <div class="post-detail">
               <% if (themeConfig.showFeatureImage && post.feature) { %>
@@ -53,7 +83,7 @@
                   </span>
                 <% } %>
               </div>
-              <div class="post-content" v-pre>
+              <div id="post-content" class="post-content" v-pre>
                 <%- normalizePostImages(post.content) %>
               </div>
             </div>
@@ -70,7 +100,7 @@
           </main>
 
           <% if (commentsEnabled) { %>
-            <aside class="post-comment-sidebar" aria-label="评论区">
+            <aside id="post-comments" class="post-comment-sidebar" aria-label="评论区">
               <div class="post-comment-sidebar-inner">
                 <h2 class="post-comment-title">评论</h2>
                 <% if (commentSetting.commentPlatform === 'gitalk') { %>

@@ -1,7 +1,11 @@
 <script src="/scripts/transliteration.umd.min.js"></script>
 <script type="application/javascript">
 
-hljs.initHighlightingOnLoad()
+if (window.hljs && typeof window.hljs.highlightAll === 'function') {
+  window.hljs.highlightAll()
+} else if (window.hljs && typeof window.hljs.initHighlightingOnLoad === 'function') {
+  window.hljs.initHighlightingOnLoad()
+}
 
 var app = new Vue({
   el: '#app',
@@ -264,6 +268,255 @@ var app = new Vue({
       closeSearch()
     }
   })
+})()
+
+;(function () {
+  var scrollTopButton = document.querySelector('[data-scroll-top]')
+  if (!scrollTopButton) {
+    return
+  }
+
+  scrollTopButton.addEventListener('click', function () {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
+  })
+})()
+
+;(function () {
+  var shareButton = document.querySelector('[data-post-share]')
+  var bookmarkButton = document.querySelector('[data-post-bookmark]')
+  var bookmarkKey = 'fly:bookmarked:' + window.location.pathname
+
+  if (shareButton) {
+    var sharePopover = null
+
+    function setShareFeedback(success) {
+      shareButton.classList.toggle('is-copied', success)
+      shareButton.setAttribute('aria-label', success ? '链接已复制' : '分享文章')
+      shareButton.setAttribute('title', success ? '链接已复制' : '分享文章')
+
+      if (success) {
+        setTimeout(function () {
+          shareButton.classList.remove('is-copied')
+          shareButton.setAttribute('aria-label', '分享文章')
+          shareButton.setAttribute('title', '分享文章')
+        }, 1600)
+      }
+    }
+
+    function closeSharePopover() {
+      if (sharePopover && sharePopover.parentNode) {
+        sharePopover.parentNode.removeChild(sharePopover)
+      }
+      sharePopover = null
+    }
+
+    function openSharePopover(url) {
+      closeSharePopover()
+
+      sharePopover = document.createElement('div')
+      sharePopover.className = 'post-share-popover'
+      var inner = document.createElement('div')
+      var closeButton = document.createElement('button')
+      var label = document.createElement('label')
+      var input = document.createElement('input')
+
+      inner.className = 'post-share-popover-inner'
+      closeButton.className = 'post-share-popover-close'
+      closeButton.type = 'button'
+      closeButton.setAttribute('aria-label', '关闭')
+      closeButton.textContent = '×'
+      label.className = 'post-share-popover-label'
+      label.textContent = '复制文章链接'
+      input.className = 'post-share-popover-input'
+      input.type = 'text'
+      input.readOnly = true
+      input.value = url
+
+      inner.appendChild(closeButton)
+      inner.appendChild(label)
+      inner.appendChild(input)
+      sharePopover.appendChild(inner)
+      document.body.appendChild(sharePopover)
+
+      if (input) {
+        input.focus()
+        input.select()
+      }
+      if (closeButton) {
+        closeButton.addEventListener('click', closeSharePopover)
+      }
+      sharePopover.addEventListener('click', function (event) {
+        if (event.target === sharePopover) {
+          closeSharePopover()
+        }
+      })
+    }
+
+    function fallbackCopyLink() {
+      var url = window.location.href
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(url)
+          .then(function () {
+            setShareFeedback(true)
+            return true
+          })
+          .catch(function () {
+            return copyLinkWithTextarea(url)
+          })
+      }
+
+      return copyLinkWithTextarea(url)
+    }
+
+    function copyLinkWithTextarea(url) {
+      var textarea = document.createElement('textarea')
+      textarea.value = url
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'fixed'
+      textarea.style.left = '-9999px'
+      textarea.style.top = '0'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+      textarea.setSelectionRange(0, textarea.value.length)
+
+      var copied = false
+      try {
+        copied = document.execCommand('copy')
+      } catch (_) {
+        copied = false
+      }
+
+      document.body.removeChild(textarea)
+      setShareFeedback(copied)
+      if (!copied) {
+        openSharePopover(url)
+      }
+      return Promise.resolve(copied)
+    }
+
+    shareButton.addEventListener('click', function () {
+      var shareData = {
+        title: document.title,
+        url: window.location.href,
+      }
+
+      if (navigator.share) {
+        navigator.share(shareData).catch(function () {
+          fallbackCopyLink()
+        })
+        return
+      }
+
+      fallbackCopyLink()
+    })
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') {
+        closeSharePopover()
+      }
+    })
+  }
+
+  if (bookmarkButton) {
+    try {
+      var bookmarked = localStorage.getItem(bookmarkKey) === '1'
+      bookmarkButton.classList.toggle('is-active', bookmarked)
+    } catch (_) {}
+
+    bookmarkButton.addEventListener('click', function () {
+      var nextState = !bookmarkButton.classList.contains('is-active')
+      bookmarkButton.classList.toggle('is-active', nextState)
+      try {
+        if (nextState) {
+          localStorage.setItem(bookmarkKey, '1')
+        } else {
+          localStorage.removeItem(bookmarkKey)
+        }
+      } catch (_) {}
+    })
+  }
+})()
+
+;(function () {
+  var categoryButtons = Array.prototype.slice.call(document.querySelectorAll('[data-home-category-filter]'))
+  var postItems = Array.prototype.slice.call(document.querySelectorAll('.home-posts .post-item'))
+  var pagination = document.querySelector('.home-posts .pagination-container')
+  var emptyState = document.querySelector('[data-home-filter-empty]')
+
+  if (!categoryButtons.length || !postItems.length) {
+    return
+  }
+
+  function setActiveButton(activeButton) {
+    categoryButtons.forEach(function (button) {
+      button.classList.toggle('is-active', button === activeButton)
+    })
+  }
+
+  function filterPosts(categorySlug) {
+    var visibleCount = 0
+
+    postItems.forEach(function (item) {
+      var slugs = (item.getAttribute('data-category-slugs') || '').split(/\s+/)
+      var shouldShow = categorySlug === 'all' || slugs.indexOf(categorySlug) > -1
+      item.style.display = shouldShow ? '' : 'none'
+      if (shouldShow) {
+        visibleCount += 1
+      }
+    })
+
+    if (pagination) {
+      pagination.style.display = categorySlug === 'all' ? '' : 'none'
+    }
+
+    if (emptyState) {
+      emptyState.classList.toggle('is-active', visibleCount === 0)
+    }
+  }
+
+  categoryButtons.forEach(function (button) {
+    button.addEventListener('click', function () {
+      setActiveButton(button)
+      filterPosts(button.getAttribute('data-home-category-filter') || 'all')
+    })
+  })
+})()
+
+;(function () {
+  var refreshButton = document.querySelector('[data-memo-refresh]')
+  var memoItems = Array.prototype.slice.call(document.querySelectorAll('[data-memo-item]'))
+
+  if (!refreshButton || memoItems.length <= 3) {
+    return
+  }
+
+  function showMemos(indexes) {
+    memoItems.forEach(function (item, index) {
+      item.classList.toggle('is-hidden', indexes.indexOf(index) === -1)
+    })
+  }
+
+  function pickRandomMemos() {
+    var indexes = memoItems.map(function (_, index) {
+      return index
+    })
+
+    for (var i = indexes.length - 1; i > 0; i -= 1) {
+      var randomIndex = Math.floor(Math.random() * (i + 1))
+      var current = indexes[i]
+      indexes[i] = indexes[randomIndex]
+      indexes[randomIndex] = current
+    }
+
+    showMemos(indexes.slice(0, 3))
+  }
+
+  refreshButton.addEventListener('click', pickRandomMemos)
 })()
 
 </script>

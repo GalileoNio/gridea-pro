@@ -8,11 +8,48 @@
       <%- include('./includes/header') %>
 
       <div class="content-container home-content-container">
+        <%
+          const categoryMap = {};
+          const sourceCategories = typeof categories !== 'undefined' && categories ? categories : [];
+          sourceCategories.forEach(function(category) {
+            if (category && category.slug) {
+              categoryMap[category.slug] = category;
+            }
+          });
+          posts.forEach(function(post) {
+            (post.categories || []).forEach(function(category) {
+              if (category && category.slug && !categoryMap[category.slug]) {
+                categoryMap[category.slug] = category;
+              }
+            });
+          });
+          const homeCategories = Object.keys(categoryMap).map(function(slug) {
+            return categoryMap[slug];
+          });
+        %>
+        <nav class="home-category-nav" aria-label="首页分类">
+          <button class="home-category-link is-active" type="button" data-home-category-filter="all">
+            <i class="icon icon-home-outline" aria-hidden="true"></i>
+            <span>推荐</span>
+          </button>
+          <button class="home-category-link" type="button" data-home-category-filter="all">
+            <i class="icon icon-grid-outline" aria-hidden="true"></i>
+            <span>全部内容</span>
+          </button>
+          <% homeCategories.forEach(function(category) { %>
+            <button class="home-category-link" type="button" data-home-category-filter="<%= category.slug %>">
+              <i class="icon icon-folder-outline" aria-hidden="true"></i>
+              <span><%= category.name %></span>
+            </button>
+          <% }); %>
+        </nav>
+
         <main class="home-posts">
           <%- include('./includes/post-list') %>
+          <div class="home-filter-empty" data-home-filter-empty>当前分类暂无文章</div>
         </main>
 
-        <% const homeMemos = typeof memos !== 'undefined' && memos ? memos.slice(0, 5) : []; %>
+        <% const homeMemos = typeof memos !== 'undefined' && memos ? memos : []; %>
         <% const homeTags = typeof tags !== 'undefined' && tags ? tags.slice(0, 20) : []; %>
         <% const homeLinks = site && site.customConfig && site.customConfig.links ? site.customConfig.links.slice(0, 8) : []; %>
         <% const memosPath = themeConfig.memosPath || 'memos'; %>
@@ -22,15 +59,22 @@
           <section class="home-sidebar-section">
             <div class="home-sidebar-header">
               <h2>闪念</h2>
-              <a class="home-sidebar-more" href="/<%= memosPath %>/" aria-label="全部闪念">
-                <i class="icon-arrow-ios-forward-outline" aria-hidden="true"></i>
-              </a>
+              <div class="home-sidebar-actions">
+                <% if (homeMemos.length > 3) { %>
+                  <button class="home-sidebar-icon-button" type="button" aria-label="随机刷新闪念" data-memo-refresh>
+                    <i class="icon-sync-outline" aria-hidden="true"></i>
+                  </button>
+                <% } %>
+                <a class="home-sidebar-more" href="/<%= memosPath %>/" aria-label="全部闪念">
+                  <i class="icon-arrow-ios-forward-outline" aria-hidden="true"></i>
+                </a>
+              </div>
             </div>
 
             <% if (homeMemos.length > 0) { %>
-              <div class="home-memos-list">
-                <% homeMemos.forEach(function(memo) { %>
-                  <article class="home-memo-item">
+              <div class="home-memos-list" data-memo-list>
+                <% homeMemos.forEach(function(memo, index) { %>
+                  <article class="home-memo-item <%= index >= 3 ? 'is-hidden' : '' %>" data-memo-item>
                     <div class="home-memo-content">
                       <%- memo.content %>
                     </div>
